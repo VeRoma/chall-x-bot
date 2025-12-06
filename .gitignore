@@ -1,0 +1,48 @@
+# --- Global / IDE Files (игнорируем настройки редакторов) ---
+.idea/
+.vscode/
+*.swp
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+.DS_Store
+*.iml
+
+# --- Logs (Логи ошибок не нужны в репозитории) ---
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# --- Backend (Java / Spring Boot) ---
+backend/target/
+backend/help.md
+backend/.mvn/wrapper/maven-wrapper.properties
+*.class
+*.jar
+# Примечание: mvnw и mvnw.cmd обычно ЛУЧШЕ оставить в репозитории, 
+# чтобы другие могли запустить проект без установки Maven. 
+# Поэтому я убрал их из игнора.
+
+# --- Frontend (React / Node) ---
+# Игнорируем тяжелые папки зависимостей везде
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Игнорируем файлы окружения (там могут быть пароли!)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Специфичные папки фронтенда (на всякий случай)
+frontend/node_modules/
+frontend/dist/
+frontend/.npm/
