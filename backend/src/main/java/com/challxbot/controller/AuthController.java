@@ -8,7 +8,7 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/auth")
-// @CrossOrigin(origins = "*") // Можно раскомментировать, если будут проблемы с CORS
+@CrossOrigin(origins = "*") // Можно раскомментировать, если будут проблемы с CORS
 public class AuthController {
 
     private final UserRepository userRepository;
@@ -16,6 +16,8 @@ public class AuthController {
     public AuthController(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
+
+
 
     @PostMapping("/login")
     public User loginOrRegister(@RequestBody User userData) {
