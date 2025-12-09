@@ -16,11 +16,9 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Уникальный ID от Telegram (не меняется)
     @Column(name = "tg_id", unique = true, nullable = false)
     private Long tgId;
 
-    // Никнейм пользователя (может меняться или отсутствовать)
     private String username;
 
     @Column(name = "first_name")
@@ -28,6 +26,11 @@ public class User {
 
     @Builder.Default
     private String role = "USER";
+
+    // Кошелек пользователя (звезды)
+    @Builder.Default
+    @Column(nullable = false)
+    private Long starsBalance = 0L;
 
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
