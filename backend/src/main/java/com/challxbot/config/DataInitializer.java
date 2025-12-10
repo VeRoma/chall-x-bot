@@ -1,7 +1,9 @@
 package com.challxbot.config;
 
 import com.challxbot.domain.Topic;
+import com.challxbot.domain.User;
 import com.challxbot.repository.TopicRepository;
+import com.challxbot.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
@@ -15,6 +17,7 @@ import java.util.List;
 public class DataInitializer implements CommandLineRunner {
 
     private final TopicRepository topicRepository;
+    private final UserRepository userRepository;
 
     @Override
     public void run(String... args) throws Exception {
@@ -23,6 +26,17 @@ public class DataInitializer implements CommandLineRunner {
 
         for (String topicName : defaultTopics) {
             createTopicIfNotFound(topicName);
+        }
+
+        if (userRepository.findById(1L).isEmpty()) {
+            User testUser = User.builder()
+                    .tgId(123456789L)
+                    .username("test_teacher")
+                    .firstName("Test User")
+                    .starsBalance(1000L) // Дадим ему денег для тестов
+                    .build();
+            userRepository.save(testUser);
+            log.info("Initialized test user: test_teacher (ID: 1)");
         }
     }
 
