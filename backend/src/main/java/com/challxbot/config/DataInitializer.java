@@ -1,15 +1,15 @@
 package com.challxbot.config;
 
+import com.challxbot.domain.Lesson;
 import com.challxbot.domain.Topic;
-import com.challxbot.domain.User;
+import com.challxbot.repository.LessonRepository;
 import com.challxbot.repository.TopicRepository;
-import com.challxbot.repository.UserRepository;
+import com.challxbot.service.GeminiService; // Добавили
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
-
-import java.util.List;
+import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @RequiredArgsConstructor
@@ -17,37 +17,52 @@ import java.util.List;
 public class DataInitializer implements CommandLineRunner {
 
     private final TopicRepository topicRepository;
-    private final UserRepository userRepository;
+    private final LessonRepository lessonRepository;
+    private final GeminiService geminiService; // Подключаем ИИ
 
     @Override
+    @Transactional
     public void run(String... args) throws Exception {
-        // Список стартовых тем
-        List<String> defaultTopics = List.of("English Language", "Mathematics", "Java Programming");
+        // 1. Создаем тему "English Language"
+        Topic english = createTopicIfNotFound("English Language");
 
-        for (String topicName : defaultTopics) {
-            createTopicIfNotFound(topicName);
-        }
+        // 2. Создаем урок "Глагол to be"
+        createLessonIfNotFound(english, "The Verb 'to be'", 1);
 
-        if (userRepository.findById(1L).isEmpty()) {
-            User testUser = User.builder()
-                    .tgId(123456789L)
-                    .username("test_teacher")
-                    .firstName("Test User")
-                    .starsBalance(1000L) // Дадим ему денег для тестов
-                    .build();
-            userRepository.save(testUser);
-            log.info("Initialized test user: test_teacher (ID: 1)");
-        }
+        // Математику тоже оставим
+        createTopicIfNotFound("Mathematics");
     }
 
-    private void createTopicIfNotFound(String name) {
-        if (topicRepository.findByName(name).isEmpty()) {
-            Topic topic = Topic.builder()
-                    .name(name)
-                    .isActive(true)
+    private Topic createTopicIfNotFound(String name) {
+        return topicRepository.findByName(name).orElseGet(() -> {
+            Topic topic = Topic.builder().name(name).isActive(true).build();
+            return topicRepository.save(topic);
+        });
+    }
+
+    private void createLessonIfNotFound(Topic topic, String title, int order) {
+        if (lessonRepository.findByTitle(title).isEmpty()) {
+            log.info("Generating content for lesson: {}", title);
+
+            // ВОТ ОНО! Спрашиваем у Gemini контент
+            // Внимание: это может занять 2-3 секунды при запуске
+            // Если ключа нет, упадет или вернет ошибку, не страшно.
+            String aiContent = geminiService.generateLessonContent(topic.getName(), title);
+
+            // Если ИИ сломался или ключа нет, ставим заглушку
+            if (aiContent == null || aiContent.startsWith("Ошибка")) {
+                aiContent = "# The Verb 'to be'\n\nIs the most important verb in English! (AI generation failed, this is placeholder).";
+            }
+
+            Lesson lesson = Lesson.builder()
+                    .topic(topic)
+                    .title(title)
+                    .content(aiContent)
+                    .orderIndex(order)
                     .build();
-            topicRepository.save(topic);
-            log.info("Initialized new topic: {}", name);
+
+            lessonRepository.save(lesson);
+            log.info("Initialized lesson: {}", title);
         }
     }
 }
