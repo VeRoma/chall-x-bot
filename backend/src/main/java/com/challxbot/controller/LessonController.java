@@ -1,17 +1,31 @@
-package com.challxbot.repository;
+package com.challxbot.controller;
 
-import com.challxbot.domain.Lesson; // Или com.challxbot.model.Lesson (проверьте, где у вас лежит сущность Lesson)
-import org.springframework.data.jpa.repository.JpaRepository;
-import java.util.Optional;
+import com.challxbot.domain.Lesson;
+import com.challxbot.repository.LessonRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
-// Это отдельный интерфейс, он НЕ внутри контроллера
-public interface LessonRepository extends JpaRepository<Lesson, Long> {
-    Optional<Lesson> findByTitle(String title);
+import java.util.List;
 
-    // Также нам нужен метод поиска по topicId, который вы вызываете в контроллере
-    // Если поле в Lesson называется topicId:
-    List<Lesson> findByTopic_Id(Integer topicId);
+@RestController
+@RequestMapping("/api/lessons")
+@RequiredArgsConstructor
+public class LessonController {
 
-    // Если в Lesson есть связь @ManyToOne private Topic topic, то метод будет:
-    // List<Lesson> findByTopic_Id(Integer topicId);
+    // Подключаем репозиторий (Spring сам подставит сюда реализацию)
+    private final LessonRepository lessonRepository;
+
+    @GetMapping("/by-topic/{topicId}")
+    public ResponseEntity<Lesson> getLessonByTopic(@PathVariable Integer topicId) {
+        // Теперь метод findByTopicId доступен через переменную lessonRepository
+        List<Lesson> lessons = lessonRepository.findByTopicId(topicId);
+
+        if (lessons.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        // Для MVP берем первый попавшийся урок
+        return ResponseEntity.ok(lessons.get(0));
+    }
 }

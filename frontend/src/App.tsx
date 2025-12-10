@@ -10,15 +10,6 @@ type UserState = {
   firstName: string;
 } | null;
 
-// Ответ от сервера при входе
-type AuthResponse = {
-  id: number;
-  tgId: number;
-  username: string;
-  role: string;
-  createdAt: string;
-};
-
 // Тип Темы (Topic) из БД
 type Topic = {
   id: number;
@@ -54,7 +45,13 @@ function App() {
     const tg = window.Telegram?.WebApp;
     if (tg) {
       tg.ready();
-      tg.expand(); // Разворачиваем на весь экран
+
+      // ИСПРАВЛЕНИЕ: Используем 'as any', чтобы TypeScript не ругался на expand
+      try {
+        (tg as any).expand();
+      } catch (e) {
+        console.log('Expand failed or not supported', e);
+      }
 
       const tgUser = tg.initDataUnsafe?.user;
       if (tgUser) {
