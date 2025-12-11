@@ -6,7 +6,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import jakarta.annotation.PostConstruct;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -19,34 +18,26 @@ public class GeminiService {
     @Value("${google.ai.key}")
     private String apiKey;
 
-    // 🔥 ФИКСИРУЕМ МОДЕЛЬ, КАК ВЫ ПРОСИЛИ
-    private static final String MODEL_NAME = "gemini-3-pro-preview";
+    private static final String MODEL_NAME = "gemini-3-pro-preview"; // Ваша модель
     private static final String API_URL_TEMPLATE = "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s";
 
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @PostConstruct
-    public void init() {
-    }
-
     /**
-     * Генерирует УРОК (HTML).
-     * Теперь строго на РУССКОМ языке для объяснений.
+     * Генерирует УРОК (HTML). Стиль: Дружелюбный репетитор.
      */
-    public String generateLessonContent(String topicName, String lessonTitle) {
-        log.info("🤖 AI REQUEST: HTML Урок (RU) по теме '{}'", topicName);
+    public String generateLessonContent(String topicName, int variant) {
+        log.info("🤖 AI: Генерирую урок '{}' (Вариант {})", topicName, variant);
 
         String prompt = String.format(
-                "Ты — учитель английского для русскоязычных новичков (уровень A1). " +
-                        "Напиши веселый и простой урок по теме '%s' (%s). " +
-                        "ВАЖНО: \n" +
-                        "1. Весь объясняющий текст пиши НА РУССКОМ ЯЗЫКЕ.\n" +
-                        "2. Английские примеры давай с переводом.\n" +
-                        "3. Верни ТОЛЬКО HTML код (внутри <div>).\n" +
-                        "4. Используй теги: <div class='lesson-card'>, <h2>, <p>, <ul>, <li>, <span class='highlight'>.\n" +
-                        "5. Используй эмодзи.",
-                lessonTitle, topicName
+                "Ты — профессиональный, но дружелюбный репетитор английского языка. " +
+                        "Напиши теоретический урок по теме '%s' для начинающих (уровень A1-A2). " +
+                        "Вариант объяснения №%d (придумай уникальные примеры, отличные от других вариантов). " +
+                        "Структура: 1) Короткое и понятное объяснение правила на русском. 2) 3-4 примера на английском с переводом. 3) Небольшой совет (Tip). " +
+                        "Стиль: Поддерживающий, спокойный, без сленга, но не сухой. " +
+                        "Формат: Верни ТОЛЬКО HTML код (внутри <div>). Используй теги <h2>, <p>, <ul>, <li>, <strong>, <span class='highlight'>. Используй немного эмодзи для акцентов.",
+                topicName, variant
         );
 
         return sendRequestToGemini(prompt, false);
@@ -54,36 +45,28 @@ public class GeminiService {
 
     /**
      * Генерирует КВИЗ (JSON).
-     * Тоже просим вопросы на понятном языке (или на английском, но с русскими пояснениями).
      */
-    public String generateQuiz(String topicName) {
-        log.info("🤖 AI REQUEST: JSON Quiz (RU) для темы '{}'", topicName);
+    public String generateQuiz(String topicName, int variant) {
+        log.info("🤖 AI: Генерирую тест для '{}' (Вариант {})", topicName, variant);
 
         String prompt = String.format(
-                "Создай тест из 5 вопросов по теме '%s' для начинающих. " +
-                        "Вопросы могут быть на английском (простые), но объяснения (explanation) пиши СТРОГО НА РУССКОМ. " +
-                        "Верни ТОЛЬКО валидный JSON массив. " +
-                        "Структура: " +
-                        "{ \"question\": \"Question text?\", " +
-                        "\"options\": [\"Option A\", \"Option B\", \"Option C\"], " +
-                        "\"correctIndex\": 0, " +
-                        "\"explanation\": \"Почему это правильно (на русском).\" }",
-                topicName
+                "Создай тест из 5 вопросов по теме '%s' (Вариант №%d). " +
+                        "Вопросы должны проверять понимание темы. " +
+                        "Вопросы на английском (простые), объяснения ошибок СТРОГО НА РУССКОМ. " +
+                        "Верни ТОЛЬКО валидный JSON массив (без Markdown). " +
+                        "Структура: [{ \"question\": \"...\", \"options\": [\"A\", \"B\", \"C\"], \"correctIndex\": 0, \"explanation\": \"...\" }]",
+                topicName, variant
         );
 
         return sendRequestToGemini(prompt, true);
     }
 
     private String sendRequestToGemini(String prompt, boolean isJsonExpected) {
-        if (apiKey == null || apiKey.isBlank()) {
-            return "<p style='color:red'>Ошибка: API Key не найден.</p>";
-        }
+        if (apiKey == null || apiKey.isBlank()) return "API Key Error";
 
         try {
-            // Экранирование
             String escapedPrompt = prompt.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n");
             String jsonBody = String.format("{\"contents\": [{\"parts\": [{\"text\": \"%s\"}]}]}", escapedPrompt);
-
             String url = String.format(API_URL_TEMPLATE, MODEL_NAME, apiKey);
 
             HttpRequest request = HttpRequest.newBuilder()
@@ -92,25 +75,19 @@ public class GeminiService {
                     .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
                     .build();
 
-            log.info("📡 Отправляю запрос в Google API (Model: {})...", MODEL_NAME);
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
-                log.error("❌ AI Error: {}", response.body());
-                return "<p>Ошибка AI: " + response.statusCode() + "</p>";
+                log.error("❌ AI Error {}: {}", response.statusCode(), response.body());
+                return isJsonExpected ? "[]" : "<p>Ошибка AI генерации.</p>";
             }
 
             String rawText = extractTextFromJson(response.body());
-
-            if (isJsonExpected) {
-                return cleanJson(rawText);
-            } else {
-                return cleanHtmlMarkdown(rawText);
-            }
+            return isJsonExpected ? cleanJson(rawText) : cleanHtmlMarkdown(rawText);
 
         } catch (Exception e) {
             log.error("❌ Exception", e);
-            return isJsonExpected ? "[]" : "<p>Ошибка генерации контента.</p>";
+            return isJsonExpected ? "[]" : "<p>Ошибка сервиса.</p>";
         }
     }
 

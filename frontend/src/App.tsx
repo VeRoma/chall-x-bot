@@ -4,37 +4,27 @@ import './App.css';
 // --- ТИПЫ ДАННЫХ ---
 type Topic = { id: number; name: string; isActive?: boolean; active?: boolean; };
 type LessonData = { id: number; title: string; content: string; };
-
-// Тип вопроса, который мы ждем от Backend (JSON)
 type QuizQuestion = {
   question: string;
   options: string[];
   correctIndex: number;
   explanation: string;
 };
-
-// Экраны
 type ViewState = 'login' | 'topics' | 'lesson' | 'quiz';
 
 function App() {
   const [user, setUser] = useState<{ firstName: string; id: number; username: string } | null>(null);
   const [status, setStatus] = useState<string>('Загрузка...');
-
-  // Навигация
   const [view, setView] = useState<ViewState>('login');
 
-  // Данные темы и урока
   const [topics, setTopics] = useState<Topic[]>([]);
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
-  const [lessonHtml, setLessonHtml] = useState<string>(''); // Храним HTML урока
+  const [lessonHtml, setLessonHtml] = useState<string>('');
 
-  // --- Состояние Квиза ---
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [showResult, setShowResult] = useState(false);
-
-  // Состояние ответа: idle (ждем), correct (верно), wrong (ошибка)
   const [answerState, setAnswerState] = useState<'idle' | 'correct' | 'wrong'>('idle');
 
   // --- ИНИЦИАЛИЗАЦИЯ ---
@@ -44,8 +34,18 @@ function App() {
       tg.ready();
       try { tg.expand(); } catch { }
 
-      // Темизация
-      const applyTheme = () => document.documentElement.setAttribute('data-theme', tg.colorScheme);
+      // --- Настройка темы и шапки ---
+      const applyTheme = () => {
+        document.documentElement.setAttribute('data-theme', tg.colorScheme);
+
+        // Безопасная установка цвета шапки
+        if (tg.themeParams && tg.themeParams.bg_color) {
+          // Проверяем существование метода перед вызовом
+          if (tg.setHeaderColor) tg.setHeaderColor(tg.themeParams.bg_color);
+          if (tg.setBackgroundColor) tg.setBackgroundColor(tg.themeParams.bg_color);
+        }
+      };
+
       applyTheme();
       tg.onEvent('themeChanged', applyTheme);
 
@@ -56,7 +56,7 @@ function App() {
     }
   }, []);
 
-  // --- ЗАГРУЗКА ДАННЫХ ---
+  // --- ЗАГРУЗКА ---
   const fetchTopics = async () => {
     try {
       const res = await fetch('/api/topics');
@@ -73,7 +73,6 @@ function App() {
       const res = await fetch(`/api/lessons/by-topic/${topic.id}`);
       if (res.ok) {
         const data: LessonData = await res.json();
-        // Присваиваем HTML напрямую
         setLessonHtml(`<h2>${data.title}</h2><br/>${data.content}`);
         setView('lesson');
       }
@@ -83,50 +82,38 @@ function App() {
     }
   };
 
-  // --- ЛОГИКА КВИЗА ---
+  // --- КВИЗ ---
   const startQuiz = async () => {
     if (!selectedTopic) return;
-
-    // Показываем заглушку пока грузится
-    setLessonHtml('<h3>🤖 Генерируем тест...</h3><p>Пожалуйста, подождите 5-10 секунд.</p>');
+    setLessonHtml('<h3>🤖 Генерируем тест...</h3><p>Пожалуйста, подождите...</p>');
 
     try {
       const res = await fetch(`/api/lessons/by-topic/${selectedTopic.id}/quiz`);
       const data = await res.json();
-
-      // Парсим JSON строку, которая пришла с бэкенда
-      // Backend возвращает { content: "[ {...}, {...} ]" }
       const parsedQuestions: QuizQuestion[] = JSON.parse(data.content);
 
-      if (!Array.isArray(parsedQuestions) || parsedQuestions.length === 0) {
-        throw new Error("Пустой тест");
-      }
+      if (!Array.isArray(parsedQuestions) || parsedQuestions.length === 0) throw new Error("Пустой тест");
 
       setQuizQuestions(parsedQuestions);
       setCurrentQuestionIndex(0);
       setScore(0);
       setShowResult(false);
       setAnswerState('idle');
-      setView('quiz'); // Переключаем экран
-
+      setView('quiz');
     } catch (e) {
       console.error(e);
-      alert('Не удалось создать тест. Попробуйте еще раз.');
-      // Возвращаем текст урока обратно, если ошибка
+      alert('Ошибка запуска теста.');
       handleTopicClick(selectedTopic);
     }
   };
 
   const handleAnswerClick = (index: number) => {
-    if (answerState !== 'idle') return; // Блокируем клики, если уже ответили
-
+    if (answerState !== 'idle') return;
     const currentQ = quizQuestions[currentQuestionIndex];
     const isCorrect = index === currentQ.correctIndex;
-
     setAnswerState(isCorrect ? 'correct' : 'wrong');
     if (isCorrect) setScore(s => s + 1);
 
-    // Пауза перед следующим вопросом
     setTimeout(() => {
       if (currentQuestionIndex < quizQuestions.length - 1) {
         setCurrentQuestionIndex(prev => prev + 1);
@@ -134,14 +121,13 @@ function App() {
       } else {
         setShowResult(true);
       }
-    }, 2000); // 2 секунды чтобы прочитать объяснение
+    }, 2000);
   };
 
   // --- РЕНДЕР ---
-
   if (view === 'login') return (
     <div className="card">
-      <h1>Chall X Bot</h1>
+      <h1>chall_X_Bot</h1>
       <button className="primary-btn" onClick={fetchTopics}>Начать 🚀</button>
     </div>
   );
@@ -159,31 +145,17 @@ function App() {
     </div>
   );
 
-  // Экран Урока
   if (view === 'lesson') return (
     <div className="container">
-      {/* Хедер с навигацией */}
       <div className="lesson-header-actions" style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-        <button onClick={() => setView('topics')} className="back-btn" style={{ flex: 1 }}>
-          ⬅ Назад
-        </button>
-        <button className="primary-btn" onClick={startQuiz} style={{ flex: 2, margin: 0 }}>
-          🧠 Тест
-        </button>
+        <button onClick={() => setView('topics')} className="back-btn" style={{ flex: 1 }}>⬅ Назад</button>
+        <button className="primary-btn" onClick={startQuiz} style={{ flex: 2, margin: 0 }}>🧠 Тест</button>
       </div>
-
-      {/* Контент урока (HTML от AI) */}
-      {/* Мы оборачиваем его в div с классом для стилизации */}
       <div className="ai-lesson-content" dangerouslySetInnerHTML={{ __html: lessonHtml }} />
-
-      {/* Дублируем кнопку внизу для удобства */}
-      <button className="primary-btn" style={{ marginTop: 30, width: '100%' }} onClick={startQuiz}>
-        🚀 Начать тест
-      </button>
+      <button className="primary-btn" style={{ marginTop: 30, width: '100%' }} onClick={startQuiz}>🚀 Начать тест</button>
     </div>
   );
 
-  // --- ЭКРАН КВИЗА ---
   if (view === 'quiz') {
     if (showResult) {
       return (
@@ -192,12 +164,8 @@ function App() {
           <div style={{ fontSize: '4rem', margin: '20px' }}>
             {score === 5 ? '🏆' : score >= 3 ? '😎' : '😐'}
           </div>
-          <p style={{ fontSize: '1.5rem' }}>
-            Ваш результат: <b>{score} / {quizQuestions.length}</b>
-          </p>
-          <button className="primary-btn" onClick={() => setView('topics')}>
-            К списку тем
-          </button>
+          <p style={{ fontSize: '1.5rem' }}>Результат: <b>{score} / {quizQuestions.length}</b></p>
+          <button className="primary-btn" onClick={() => setView('topics')}>К темам</button>
         </div>
       );
     }
@@ -209,21 +177,14 @@ function App() {
           <div className="progress-fill" style={{ width: `${((currentQuestionIndex) / quizQuestions.length) * 100}%` }}></div>
         </div>
         <p className="step-text">Вопрос {currentQuestionIndex + 1} из {quizQuestions.length}</p>
-
         <h3 className="quiz-question">{question.question}</h3>
-
         <div className="options-list">
           {question.options.map((opt, idx) => {
             let btnClass = 'option-btn';
-            // Логика подсветки
             if (answerState !== 'idle') {
               if (idx === question.correctIndex) btnClass += ' correct';
-              else if (answerState === 'wrong' && idx === undefined) btnClass += ' wrong'; // (тут можно доработать логику подсветки нажатой кнопки)
+              else if (answerState === 'wrong' && idx === undefined) btnClass += ' wrong';
             }
-
-            // Если ответили неправильно, подсвечиваем красным именно нажатую (но тут у нас нет индекса нажатой в стейте, 
-            // для простоты подсвечиваем правильный зеленым всегда, а остальные гасим)
-
             return (
               <button
                 key={idx}
@@ -236,13 +197,9 @@ function App() {
             )
           })}
         </div>
-
-        {/* Блок объяснения появляется после ответа */}
         {answerState !== 'idle' && (
           <div className={`explanation-box ${answerState}`}>
-            <div style={{ fontSize: '2rem', marginBottom: 10 }}>
-              {answerState === 'correct' ? '🎉' : '❌'}
-            </div>
+            <div style={{ fontSize: '2rem', marginBottom: 10 }}>{answerState === 'correct' ? '🎉' : '❌'}</div>
             <strong>{answerState === 'correct' ? 'Верно!' : 'Ошибка!'}</strong>
             <p>{question.explanation}</p>
           </div>
@@ -250,7 +207,6 @@ function App() {
       </div>
     );
   }
-
   return null;
 }
 

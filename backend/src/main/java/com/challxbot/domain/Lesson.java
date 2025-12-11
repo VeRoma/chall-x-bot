@@ -1,33 +1,41 @@
 package com.challxbot.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.*;
-import com.fasterxml.jackson.annotation.JsonIgnore; // <--- 1. Добавьте этот импорт
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "lessons")
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
-@Builder
 public class Lesson {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Integer id;
 
-    @Column(nullable = false)
     private String title;
 
-    // 2. Добавьте аннотацию @JsonIgnore
-    // Это скажет Spring'у: "Не пытайся превратить это поле в JSON, просто пропусти его"
-    @JsonIgnore
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "topic_id", nullable = false)
-    private Topic topic;
+    @Column(columnDefinition = "TEXT")
+    private String content; // HTML урока
 
     @Column(columnDefinition = "TEXT")
-    private String content;
+    private String quizJson; // JSON теста (храним как строку)
 
-    private int orderIndex;
+    private Integer orderIndex;
+
+    @ManyToOne
+    @JoinColumn(name = "topic_id")
+    @JsonIgnore
+    private Topic topic;
+
+    // Полезный конструктор
+    public Lesson(String title, String content, String quizJson, Topic topic, Integer orderIndex) {
+        this.title = title;
+        this.content = content;
+        this.quizJson = quizJson;
+        this.topic = topic;
+        this.orderIndex = orderIndex;
+    }
 }

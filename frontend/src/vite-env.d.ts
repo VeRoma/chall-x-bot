@@ -1,6 +1,5 @@
 /// <reference types="vite/client" />
 
-// Расширяем интерфейс Window, чтобы TypeScript знал о window.Telegram
 interface Window {
     Telegram?: {
         WebApp: {
@@ -65,7 +64,11 @@ interface Window {
             expand(): void;
             close(): void;
 
-            // --- События (которых не хватало) ---
+            // --- Методы стилизации (ОПИСАНИЕ, КОТОРОГО НЕ ХВАТАЛО) ---
+            setHeaderColor?(color: string): void;
+            setBackgroundColor?(color: string): void;
+
+            // --- События ---
             onEvent(eventType: string, eventHandler: () => void): void;
             offEvent(eventType: string, eventHandler: () => void): void;
             sendData(data: any): void;
@@ -73,7 +76,6 @@ interface Window {
     };
 }
 
-// Типы данных, которые приходят от Telegram
 interface WebAppUser {
     id: number;
     is_bot?: boolean;
@@ -94,11 +96,11 @@ interface WebAppChat {
 }
 
 interface ThemeParams {
-    bg_color: string;
-    text_color: string;
-    hint_color: string;
-    link_color: string;
-    button_color: string;
-    button_text_color: string;
-    secondary_bg_color: string;
+    bg_color?: string;
+    text_color?: string;
+    hint_color?: string;
+    link_color?: string;
+    button_color?: string;
+    button_text_color?: string;
+    secondary_bg_color?: string;
 }
