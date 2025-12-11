@@ -2,6 +2,7 @@ package com.challxbot.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
+import com.fasterxml.jackson.annotation.JsonIgnore; // <--- 1. Добавьте этот импорт
 
 @Entity
 @Table(name = "lessons")
@@ -16,21 +17,17 @@ public class Lesson {
     private Long id;
 
     @Column(nullable = false)
-    private String title; // Например: "Глагол to be"
+    private String title;
 
+    // 2. Добавьте аннотацию @JsonIgnore
+    // Это скажет Spring'у: "Не пытайся превратить это поле в JSON, просто пропусти его"
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "topic_id", nullable = false)
-    private Topic topic; // Ссылка на "English Language"
+    private Topic topic;
 
-    // ОСНОВНОЙ КОНТЕНТ (Сгенерированный ИИ)
-    // Используем TEXT, чтобы влезали большие статьи.
     @Column(columnDefinition = "TEXT")
     private String content;
 
-    // Порядок урока в курсе (1, 2, 3...)
     private int orderIndex;
-
-    // В будущем добавим поле для упражнений:
-    // @Column(columnDefinition = "jsonb")
-    // private String exercises;
 }

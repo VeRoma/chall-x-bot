@@ -4,12 +4,14 @@ import com.challxbot.domain.Lesson;
 import com.challxbot.domain.Topic;
 import com.challxbot.repository.LessonRepository;
 import com.challxbot.repository.TopicRepository;
-import com.challxbot.service.GeminiService; // Добавили
+import com.challxbot.service.GeminiService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
@@ -18,51 +20,65 @@ public class DataInitializer implements CommandLineRunner {
 
     private final TopicRepository topicRepository;
     private final LessonRepository lessonRepository;
-    private final GeminiService geminiService; // Подключаем ИИ
+    private final GeminiService geminiService;
 
     @Override
     @Transactional
     public void run(String... args) throws Exception {
-        // 1. Создаем тему "English Language"
         Topic english = createTopicIfNotFound("English Language");
-
-        // 2. Создаем урок "Глагол to be"
-        createLessonIfNotFound(english, "The Verb 'to be'", 1);
-
-        // Математику тоже оставим
+        createOrUpdateLesson(english, "The Verb 'to be'", 1);
         createTopicIfNotFound("Mathematics");
     }
 
     private Topic createTopicIfNotFound(String name) {
         return topicRepository.findByName(name).orElseGet(() -> {
+            log.info("Creating topic: {}", name);
             Topic topic = Topic.builder().name(name).isActive(true).build();
             return topicRepository.save(topic);
         });
     }
 
-    private void createLessonIfNotFound(Topic topic, String title, int order) {
-        if (lessonRepository.findByTitle(title).isEmpty()) {
-            log.info("Generating content for lesson: {}", title);
+    private void createOrUpdateLesson(Topic topic, String title, int order) {
+        Optional<Lesson> existingLessonOpt = lessonRepository.findByTitle(title);
 
-            // ВОТ ОНО! Спрашиваем у Gemini контент
-            // Внимание: это может занять 2-3 секунды при запуске
-            // Если ключа нет, упадет или вернет ошибку, не страшно.
-            String aiContent = geminiService.generateLessonContent(topic.getName(), title);
+        boolean shouldGenerateContent = false;
+        Lesson lesson;
 
-            // Если ИИ сломался или ключа нет, ставим заглушку
-            if (aiContent == null || aiContent.startsWith("Ошибка")) {
-                aiContent = "# The Verb 'to be'\n\nIs the most important verb in English! (AI generation failed, this is placeholder).";
-            }
-
-            Lesson lesson = Lesson.builder()
+        if (existingLessonOpt.isEmpty()) {
+            log.info("Lesson '{}' not found. Creating and generating content.", title);
+            shouldGenerateContent = true;
+            lesson = Lesson.builder()
                     .topic(topic)
                     .title(title)
-                    .content(aiContent)
                     .orderIndex(order)
                     .build();
+        } else {
+            lesson = existingLessonOpt.get();
+            String content = lesson.getContent();
+            log.info("Current content for lesson '{}': {}", title, content); // ЛОГИРУЕМ КОНТЕНТ
 
+            // Check if content is a placeholder or indicates an error
+            if (content == null || content.contains("(AI generation failed, this is placeholder)") || content.startsWith("Ошибка") || content.contains("Не удалось сгенерировать контент")) {
+                log.info("Lesson '{}' found with placeholder or error content. Regenerating.", title);
+                shouldGenerateContent = true;
+            } else {
+                log.info("Lesson '{}' already exists with valid content. Skipping generation.", title);
+            }
+        }
+
+        if (shouldGenerateContent) {
+            String aiContent = geminiService.generateLessonContent(topic.getName(), title);
+
+            // If AI fails, use a placeholder
+            if (aiContent == null || aiContent.startsWith("Ошибка")) {
+                log.warn("AI content generation failed for lesson '{}'. Using placeholder.", title);
+                aiContent = "# The Verb 'to be'\\n\\nIs the most important verb in English! (AI generation failed, this is placeholder).";
+            } else {
+                log.info("Successfully generated AI content for lesson '{}'.", title);
+            }
+            lesson.setContent(aiContent);
             lessonRepository.save(lesson);
-            log.info("Initialized lesson: {}", title);
+            log.info("Saved lesson: {}", title);
         }
     }
 }

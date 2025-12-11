@@ -43,15 +43,37 @@ function App() {
   useEffect(() => {
     // Проверяем Telegram WebApp
     const tg = window.Telegram?.WebApp;
+
+    // Функция очистки (cleanup) для useEffect
+    let cleanup = () => { };
+
     if (tg) {
       tg.ready();
 
       // ИСПРАВЛЕНИЕ: Используем 'as any', чтобы TypeScript не ругался на expand
       try {
-        (tg as any).expand();
+        tg.expand();
       } catch (e) {
         console.log('Expand failed or not supported', e);
       }
+
+      // --- ТЕМИЗАЦИЯ (НОВОЕ) ---
+      const applyTheme = () => {
+        // Берем схему (light/dark) из Telegram и ставим как атрибут
+        document.documentElement.setAttribute('data-theme', tg.colorScheme);
+      };
+
+      // 1. Применяем тему сразу при старте
+      applyTheme();
+
+      // 2. Подписываемся на изменение темы в настройках Telegram
+      tg.onEvent('themeChanged', applyTheme);
+
+      // 3. Запоминаем функцию отписки для cleanup
+      cleanup = () => {
+        tg.offEvent('themeChanged', applyTheme);
+      };
+      // --------------------------
 
       const tgUser = tg.initDataUnsafe?.user;
       if (tgUser) {
@@ -61,14 +83,17 @@ function App() {
           firstName: tgUser.first_name
         });
         setStatus('Готово к входу');
-        return;
+        // Если пользователь найден, выходим и возвращаем функцию очистки
+        return cleanup;
       }
     }
 
-    // Режим разработки (в браузере)
+    // Режим разработки (в браузере или если нет пользователя)
     console.log("Telegram не найден. Режим разработки.");
     setUser({ id: 12345, username: 'developer', firstName: 'Dev' });
     setStatus('Dev Mode (Localhost)');
+
+    return cleanup;
   }, []);
 
   // --- ЛОГИКА ---

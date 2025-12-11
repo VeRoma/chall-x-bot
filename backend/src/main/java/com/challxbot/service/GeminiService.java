@@ -1,27 +1,30 @@
 package com.challxbot.service;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClient;
 
-import java.util.List;
-import java.util.Map;
+import jakarta.annotation.PostConstruct;
 
 @Service
 @Slf4j
-@RequiredArgsConstructor
 public class GeminiService {
 
     @Value("${google.ai.key}")
     private String apiKey;
 
-    private final RestClient restClient = RestClient.create();
+    @PostConstruct
+    public void init() {
+        // Инициализация не требуется для HttpClient
+    }
 
     public String generateLessonContent(String topicName, String lessonTitle) {
-        log.info("Asking Gemini to generate content for: {} - {}", topicName, lessonTitle);
+        log.info("🤖 AI REQUEST: Начинаю генерацию для темы '{}'", topicName);
+
+        if (apiKey == null || apiKey.isBlank()) {
+            log.error("❌ ОШИБКА AI: API Key не найден!");
+            return "Ошибка конфигурации (API Key).";
+        }
 
         String prompt = String.format(
                 "Напиши короткий, веселый и понятный обучающий урок по теме '%s' для дисциплины '%s'. " +
@@ -30,48 +33,49 @@ public class GeminiService {
                 lessonTitle, topicName
         );
 
-        // Структура запроса к Gemini API
-        var requestBody = Map.of(
-                "contents", List.of(
-                        Map.of("parts", List.of(Map.of("text", prompt)))
-                )
+        // JSON Body
+        String jsonBody = String.format(
+            "{\"contents\": [{\"parts\": [{\"text\": \"%s\"}]}]}", 
+            prompt.replace("\"", "\\\"").replace("\n", "\\n") // Экранирование кавычек
         );
 
         try {
-            // Отправляем запрос
-            String response = restClient.post()
-                    .uri("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=" + apiKey)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(requestBody)
-                    .retrieve()
-                    .body(String.class);
+            log.info("📡 Отправляю запрос в Google API (Java HttpClient)...");
 
-            // Тут мы получаем сырой JSON, нам нужно бы его распарсить.
-            // Но для простоты вернем пока "заглушку", если парсинг сложен без DTO.
-            // В реальности тут нужно достать поле: candidates[0].content.parts[0].text
-            // Давай пока вернем просто строку, чтобы проверить связь, или простейший парсинг.
-            return extractTextFromJson(response);
+            java.net.http.HttpClient httpClient = java.net.http.HttpClient.newHttpClient();
+            
+            // ИСПОЛЬЗУЕМ МОДЕЛЬ ИЗ СПИСКА: gemini-2.0-flash
+            String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey;
+            
+            java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
+                    .uri(java.net.URI.create(url))
+                    .header("Content-Type", "application/json")
+                    .POST(java.net.http.HttpRequest.BodyPublishers.ofString(jsonBody))
+                    .build();
+
+            java.net.http.HttpResponse<String> response = httpClient.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() != 200) {
+                log.error("❌ AI ERROR: Код ответа {}. Тело: {}", response.statusCode(), response.body());
+                return "Ошибка API: " + response.statusCode();
+            }
+
+            String responseBody = response.body();
+            log.info("✅ AI RESPONSE: Получен ответ! Длина: {}", responseBody.length());
+
+            // Простой парсинг JSON с Jackson
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            com.fasterxml.jackson.databind.JsonNode root = mapper.readTree(responseBody);
+            String text = root.at("/candidates/0/content/parts/0/text").asText();
+            
+            if (text == null || text.isEmpty()) {
+                 return "Пустой ответ от AI.";
+            }
+            return text;
 
         } catch (Exception e) {
-            log.error("Gemini API Error", e);
-            return "Не удалось сгенерировать контент. Попробуйте позже.";
-        }
-    }
-
-    // Очень простой парсер, чтобы не тянуть DTO классы
-    private String extractTextFromJson(String json) {
-        // Это грязный хак для прототипа, в продакшене используем Jackson JsonNode!
-        try {
-            int startIndex = json.indexOf("\"text\": \"");
-            if (startIndex == -1) return "Текст не найден в ответе ИИ";
-            startIndex += 9;
-            int endIndex = json.indexOf("\"", startIndex);
-            // Нужно учитывать экранирование, но для теста сойдет
-            String text = json.substring(startIndex, json.indexOf("\"", startIndex + 1)); // Упрощено
-            // Внимание: лучше потом переписать на ObjectMapper, когда подключим библиотеку
-            return "Gemini ответил (сырой текст пока сложно парсить вручную): " + text.substring(0, Math.min(text.length(), 50)) + "...";
-        } catch (Exception e) {
-            return "Ошибка парсинга ответа.";
+            log.error("❌ AI ERROR: Исключение при запросе.", e);
+            return "Ошибка генерации: " + e.getMessage();
         }
     }
 }
