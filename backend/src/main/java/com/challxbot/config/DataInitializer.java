@@ -8,77 +8,56 @@ import com.challxbot.service.GeminiService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
-import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
-import java.util.Optional;
-
-@Component
+@Configuration
 @RequiredArgsConstructor
 @Slf4j
-public class DataInitializer implements CommandLineRunner {
+public class DataInitializer {
 
     private final TopicRepository topicRepository;
     private final LessonRepository lessonRepository;
     private final GeminiService geminiService;
 
-    @Override
-    @Transactional
-    public void run(String... args) throws Exception {
-        Topic english = createTopicIfNotFound("English Language");
-        createOrUpdateLesson(english, "The Verb 'to be'", 1);
-        createTopicIfNotFound("Mathematics");
-    }
+    @Bean
+    public CommandLineRunner initData() {
+        return args -> {
+            // ВАЖНО: Удаляем старые уроки, чтобы сгенерировать новые (красивые HTML)
+            // В продакшене эту строку нужно будет убрать!
+            lessonRepository.deleteAll();
+            topicRepository.deleteAll();
 
-    private Topic createTopicIfNotFound(String name) {
-        return topicRepository.findByName(name).orElseGet(() -> {
-            log.info("Creating topic: {}", name);
-            Topic topic = Topic.builder().name(name).isActive(true).build();
-            return topicRepository.save(topic);
-        });
-    }
+            // Создаем тему
+            String topicName = "English Language";
+            Topic topic = topicRepository.findByName(topicName)
+                    .orElseGet(() -> {
+                        Topic newTopic = Topic.builder()
+                                .name(topicName)
+                                .isActive(true)
+                                .build();
+                        return topicRepository.save(newTopic);
+                    });
 
-    private void createOrUpdateLesson(Topic topic, String title, int order) {
-        Optional<Lesson> existingLessonOpt = lessonRepository.findByTitle(title);
+            // Генерируем урок
+            String lessonTitle = "The Verb 'to be'";
 
-        boolean shouldGenerateContent = false;
-        Lesson lesson;
+            try {
+                String content = geminiService.generateLessonContent(topicName, lessonTitle);
 
-        if (existingLessonOpt.isEmpty()) {
-            log.info("Lesson '{}' not found. Creating and generating content.", title);
-            shouldGenerateContent = true;
-            lesson = Lesson.builder()
-                    .topic(topic)
-                    .title(title)
-                    .orderIndex(order)
-                    .build();
-        } else {
-            lesson = existingLessonOpt.get();
-            String content = lesson.getContent();
-            log.info("Current content for lesson '{}': {}", title, content); // ЛОГИРУЕМ КОНТЕНТ
+                Lesson lesson = Lesson.builder()
+                        .title(lessonTitle)
+                        .content(content)
+                        .topic(topic)
+                        .orderIndex(1)
+                        .build();
 
-            // Check if content is a placeholder or indicates an error
-            if (content == null || content.contains("(AI generation failed, this is placeholder)") || content.startsWith("Ошибка") || content.contains("Не удалось сгенерировать контент")) {
-                log.info("Lesson '{}' found with placeholder or error content. Regenerating.", title);
-                shouldGenerateContent = true;
-            } else {
-                log.info("Lesson '{}' already exists with valid content. Skipping generation.", title);
+                lessonRepository.save(lesson);
+                log.info("✅ Урок '{}' успешно создан!", lessonTitle);
+
+            } catch (Exception e) {
+                log.error("❌ Не удалось сгенерировать или сохранить урок '{}'", lessonTitle, e);
             }
-        }
-
-        if (shouldGenerateContent) {
-            String aiContent = geminiService.generateLessonContent(topic.getName(), title);
-
-            // If AI fails, use a placeholder
-            if (aiContent == null || aiContent.startsWith("Ошибка")) {
-                log.warn("AI content generation failed for lesson '{}'. Using placeholder.", title);
-                aiContent = "# The Verb 'to be'\\n\\nIs the most important verb in English! (AI generation failed, this is placeholder).";
-            } else {
-                log.info("Successfully generated AI content for lesson '{}'.", title);
-            }
-            lesson.setContent(aiContent);
-            lessonRepository.save(lesson);
-            log.info("Saved lesson: {}", title);
-        }
+        };
     }
 }
