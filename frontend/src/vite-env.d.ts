@@ -25,7 +25,7 @@ interface Window {
             backgroundColor: string;
             isClosingConfirmationEnabled: boolean;
 
-            // --- Кнопки ---
+            // Кнопки
             BackButton: {
                 isVisible: boolean;
                 onClick(callback: () => void): void;
@@ -59,16 +59,16 @@ interface Window {
             };
             HapticFeedback: any;
 
-            // --- Методы управления ---
+            // Методы управления
             ready(): void;
             expand(): void;
             close(): void;
 
-            // --- Методы стилизации (ОПИСАНИЕ, КОТОРОГО НЕ ХВАТАЛО) ---
+            // 🔥 ВАЖНО: Этих методов не хватало
             setHeaderColor?(color: string): void;
             setBackgroundColor?(color: string): void;
 
-            // --- События ---
+            // События
             onEvent(eventType: string, eventHandler: () => void): void;
             offEvent(eventType: string, eventHandler: () => void): void;
             sendData(data: any): void;
@@ -76,6 +76,7 @@ interface Window {
     };
 }
 
+// Типы данных
 interface WebAppUser {
     id: number;
     is_bot?: boolean;

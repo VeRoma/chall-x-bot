@@ -6,7 +6,7 @@
   --tg-button-text-color: #ffffff;
   --tg-secondary-bg-color: #f0f0f0;
 
-  /* НОВАЯ ПЕРЕМЕННАЯ ДЛЯ КАРТОЧЕК ВОПРОСОВ И КНОПОК */
+  /* Цвет поверхности карточек и кнопок */
   --tg-surface-color: #f5f5f5;
   --tg-surface-border: #e0e0e0;
 }
@@ -14,23 +14,23 @@
 [data-theme='dark'] {
   /* ТЕМНАЯ ТЕМА */
   --tg-bg-color: #212121;
-  /* Основной фон (почти черный) */
   --tg-text-color: #ffffff;
   --tg-button-color: #8774e1;
   --tg-button-text-color: #ffffff;
   --tg-secondary-bg-color: #2f2f2f;
 
-  /* Делаем карточки светлее фона, чтобы они выделялись */
-  --tg-surface-color: #383838;
-  --tg-surface-border: #4a4a4a;
+  /* Карточки светлее фона (#333), чтобы их было видно */
+  --tg-surface-color: #333333;
+  --tg-surface-border: #444444;
 }
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
+  padding: 0;
   min-width: 320px;
   min-height: 100vh;
+
+  /* УБРАЛИ display: flex и place-items: center, чтобы контент шел сверху вниз */
 
   background-color: var(--tg-bg-color);
   color: var(--tg-text-color);
@@ -40,7 +40,6 @@ body {
 }
 
 .card {
-  /* Используем новый цвет поверхности */
   background-color: var(--tg-surface-color);
   padding: 2rem;
   border-radius: 12px;
@@ -58,58 +57,4 @@ button {
   font-family: inherit;
   cursor: pointer;
   transition: border-color 0.25s;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
 }

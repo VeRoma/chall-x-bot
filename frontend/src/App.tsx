@@ -32,17 +32,18 @@ function App() {
     const tg = window.Telegram?.WebApp;
     if (tg) {
       tg.ready();
-      try { tg.expand(); } catch { }
+      // Используем опциональный вызов, чтобы не было ошибок, если метода нет в старой версии Telegram
+      tg.expand?.();
 
       // --- Настройка темы и шапки ---
       const applyTheme = () => {
         document.documentElement.setAttribute('data-theme', tg.colorScheme);
 
-        // Безопасная установка цвета шапки
+        // Если есть параметры темы, применяем их к шапке
         if (tg.themeParams && tg.themeParams.bg_color) {
-          // Проверяем существование метода перед вызовом
-          if (tg.setHeaderColor) tg.setHeaderColor(tg.themeParams.bg_color);
-          if (tg.setBackgroundColor) tg.setBackgroundColor(tg.themeParams.bg_color);
+          // ИСПРАВЛЕНИЕ: Используем ?.() вместо if (...)
+          tg.setHeaderColor?.(tg.themeParams.bg_color);
+          tg.setBackgroundColor?.(tg.themeParams.bg_color);
         }
       };
 
@@ -90,6 +91,7 @@ function App() {
     try {
       const res = await fetch(`/api/lessons/by-topic/${selectedTopic.id}/quiz`);
       const data = await res.json();
+      // Парсим JSON из ответа сервера
       const parsedQuestions: QuizQuestion[] = JSON.parse(data.content);
 
       if (!Array.isArray(parsedQuestions) || parsedQuestions.length === 0) throw new Error("Пустой тест");
@@ -102,7 +104,8 @@ function App() {
       setView('quiz');
     } catch (e) {
       console.error(e);
-      alert('Ошибка запуска теста.');
+      alert('Ошибка запуска теста. Попробуйте еще раз.');
+      // Если ошибка, возвращаемся к просмотру урока
       handleTopicClick(selectedTopic);
     }
   };
@@ -127,7 +130,7 @@ function App() {
   // --- РЕНДЕР ---
   if (view === 'login') return (
     <div className="card">
-      <h1>chall_X_Bot</h1>
+      <h1>Chall_X_Bot</h1>
       <button className="primary-btn" onClick={fetchTopics}>Начать 🚀</button>
     </div>
   );
