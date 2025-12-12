@@ -27,17 +27,17 @@ public class DataInitializer {
 
     // Список тем для генерации
     private final List<String> TOPICS = List.of(
-            "The Verb 'to be' (Глагол быть)"
-//            "Present Simple (Настоящее простое)",
-//            "Present Continuous (Настоящее продолженное)",
-//            "Past Simple (Прошедшее простое)",
-//            "Future Simple (Will vs Going to)",
-//            "Articles (A/An/The)",
-//            "Plural Nouns (Множественное число)",
-//            "Pronouns (Местоимения)",
-//            "Adjectives (Прилагательные)",
-//            "Prepositions of Place (In/On/At)",
-//            "Modal Verbs (Can/Must/Should)"
+            "The Verb 'to be' (Глагол быть)",
+            "Present Simple (Настоящее простое)",
+            "Present Continuous (Настоящее продолженное)",
+            "Past Simple (Прошедшее простое)",
+            "Future Simple (Will vs Going to)",
+            "Articles (A/An/The)",
+            "Plural Nouns (Множественное число)",
+            "Pronouns (Местоимения)",
+            "Adjectives (Прилагательные)",
+            "Prepositions of Place (In/On/At)",
+            "Modal Verbs (Can/Must/Should)"
     );
 
     @Bean
