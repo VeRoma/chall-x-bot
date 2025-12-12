@@ -36,8 +36,9 @@ public class VocabularyService {
     );
 
     // Модель AI
-    private static final String MODEL_NAME = "gemini-1.5-flash";
+    private static final String MODEL_NAME = "gemini-3-pro-preview";
     private static final String API_URL_TEMPLATE = "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s";
+                                                 //"https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s";
 
     /**
      * Запускает процесс обогащения слов.
@@ -71,7 +72,7 @@ public class VocabularyService {
                         "Требования: " +
                         "1. translationShort: перевод 1-2 слова (для кнопки). " +
                         "2. translationFull: полный перевод с примером использования. " +
-                        "3. traps: массив из 3 НЕПРАВИЛЬНЫХ слов (на русском или английском), которые визуально похожи или созвучны, чтобы запутать. " +
+                        "3. traps: массив из 3 НЕПРАВИЛЬНЫХ слов (на русском!), которые на английском визуально похожи или созвучны, чтобы запутать. " +
                         "4. partOfSpeech: часть речи (verb, noun...). " +
                         "Верни ТОЛЬКО валидный JSON массив (без Markdown). Структура: %s",
                 String.join(", ", words), jsonStructure

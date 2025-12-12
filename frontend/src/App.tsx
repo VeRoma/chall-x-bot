@@ -10,7 +10,16 @@ type QuizQuestion = {
   correctIndex: number;
   explanation: string;
 };
-type ViewState = 'login' | 'topics' | 'lesson' | 'quiz';
+
+// НОВЫЙ ТИП: Вопрос по словам
+type WordQuizQuestion = {
+  word: string;
+  options: string[];
+  correctIndex: number;
+  translationFull: string;
+};
+
+type ViewState = 'login' | 'topics' | 'lesson' | 'quiz' | 'word-quiz';
 
 function App() {
   const [user, setUser] = useState<{ firstName: string; id: number; username: string } | null>(null);
@@ -21,7 +30,12 @@ function App() {
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [lessonHtml, setLessonHtml] = useState<string>('');
 
+  // Состояние Квиза (Грамматика)
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
+
+  // Состояние Квиза (СЛОВА)
+  const [wordQuestions, setWordQuestions] = useState<WordQuizQuestion[]>([]);
+
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [showResult, setShowResult] = useState(false);
@@ -32,21 +46,15 @@ function App() {
     const tg = window.Telegram?.WebApp;
     if (tg) {
       tg.ready();
-      // Используем опциональный вызов, чтобы не было ошибок, если метода нет в старой версии Telegram
-      tg.expand?.();
+      try { tg.expand?.(); } catch { }
 
-      // --- Настройка темы и шапки ---
       const applyTheme = () => {
         document.documentElement.setAttribute('data-theme', tg.colorScheme);
-
-        // Если есть параметры темы, применяем их к шапке
         if (tg.themeParams && tg.themeParams.bg_color) {
-          // ИСПРАВЛЕНИЕ: Используем ?.() вместо if (...)
           tg.setHeaderColor?.(tg.themeParams.bg_color);
           tg.setBackgroundColor?.(tg.themeParams.bg_color);
         }
       };
-
       applyTheme();
       tg.onEvent('themeChanged', applyTheme);
 
@@ -57,7 +65,6 @@ function App() {
     }
   }, []);
 
-  // --- ЗАГРУЗКА ---
   const fetchTopics = async () => {
     try {
       const res = await fetch('/api/topics');
@@ -65,6 +72,31 @@ function App() {
       setTopics(data.length ? data : []);
       setView('topics');
     } catch { setStatus('Ошибка загрузки тем'); }
+  };
+
+  // --- ЗАПУСК УЧИТЬ СЛОВА ---
+  const startWordQuiz = async () => {
+    setStatus('Загружаем слова...');
+    try {
+      const res = await fetch('/api/vocabulary/challenge');
+      if (!res.ok) throw new Error('Ошибка API');
+
+      const data: WordQuizQuestion[] = await res.json();
+      if (data.length === 0) {
+        alert('Словарь пока пуст! Подождите генерацию на сервере.');
+        return;
+      }
+
+      setWordQuestions(data);
+      setCurrentQuestionIndex(0);
+      setScore(0);
+      setShowResult(false);
+      setAnswerState('idle');
+      setView('word-quiz');
+    } catch (e) {
+      console.error(e);
+      alert('Не удалось загрузить слова.');
+    }
   };
 
   const handleTopicClick = async (topic: Topic) => {
@@ -83,18 +115,14 @@ function App() {
     }
   };
 
-  // --- КВИЗ ---
   const startQuiz = async () => {
     if (!selectedTopic) return;
-    setLessonHtml('<h3>🤖 Генерируем тест...</h3><p>Пожалуйста, подождите...</p>');
-
+    setLessonHtml('<h3>🤖 Генерируем тест...</h3>');
     try {
       const res = await fetch(`/api/lessons/by-topic/${selectedTopic.id}/quiz`);
       const data = await res.json();
-      // Парсим JSON из ответа сервера
       const parsedQuestions: QuizQuestion[] = JSON.parse(data.content);
-
-      if (!Array.isArray(parsedQuestions) || parsedQuestions.length === 0) throw new Error("Пустой тест");
+      if (!Array.isArray(parsedQuestions)) throw new Error("Пустой тест");
 
       setQuizQuestions(parsedQuestions);
       setCurrentQuestionIndex(0);
@@ -103,41 +131,63 @@ function App() {
       setAnswerState('idle');
       setView('quiz');
     } catch (e) {
-      console.error(e);
-      alert('Ошибка запуска теста. Попробуйте еще раз.');
-      // Если ошибка, возвращаемся к просмотру урока
+      alert('Ошибка запуска теста.');
       handleTopicClick(selectedTopic);
     }
   };
 
-  const handleAnswerClick = (index: number) => {
+  // Единый обработчик ответов (для обоих типов квизов)
+  const handleAnswerClick = (index: number, type: 'grammar' | 'word') => {
     if (answerState !== 'idle') return;
-    const currentQ = quizQuestions[currentQuestionIndex];
-    const isCorrect = index === currentQ.correctIndex;
+
+    let isCorrect = false;
+    let totalQuestions = 0;
+
+    if (type === 'grammar') {
+      const currentQ = quizQuestions[currentQuestionIndex];
+      isCorrect = index === currentQ.correctIndex;
+      totalQuestions = quizQuestions.length;
+    } else {
+      const currentQ = wordQuestions[currentQuestionIndex];
+      isCorrect = index === currentQ.correctIndex;
+      totalQuestions = wordQuestions.length;
+    }
+
     setAnswerState(isCorrect ? 'correct' : 'wrong');
     if (isCorrect) setScore(s => s + 1);
 
+    // Для слов даем больше времени почитать "Полный перевод" (3.5 сек), для грамматики 2 сек
+    const delay = type === 'word' ? 3500 : 2000;
+
     setTimeout(() => {
-      if (currentQuestionIndex < quizQuestions.length - 1) {
+      if (currentQuestionIndex < totalQuestions - 1) {
         setCurrentQuestionIndex(prev => prev + 1);
         setAnswerState('idle');
       } else {
         setShowResult(true);
       }
-    }, 2000);
+    }, delay);
   };
 
   // --- РЕНДЕР ---
   if (view === 'login') return (
     <div className="card">
       <h1>Chall_X_Bot</h1>
-      <button className="primary-btn" onClick={fetchTopics}>Начать 🚀</button>
+      <button className="primary-btn" onClick={fetchTopics}>Грамматика 🇬🇧</button>
+      <div style={{ height: 20 }}></div>
+      <button className="primary-btn" style={{ backgroundColor: '#e91e63' }} onClick={startWordQuiz}>
+        📚 Слова (Топ 100)
+      </button>
     </div>
   );
 
   if (view === 'topics') return (
     <div className="container">
-      <h2>Темы курса</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h2>Темы курса</h2>
+        {/* Кнопка домой */}
+        <button className="back-btn" style={{ padding: '5px 10px' }} onClick={() => setView('login')}>🏠</button>
+      </div>
       <div className="topics-grid">
         {topics.map(t => (
           <button key={t.id} className="topic-card" onClick={() => handleTopicClick(t)}>
@@ -159,42 +209,86 @@ function App() {
     </div>
   );
 
+  // --- РЕНДЕР КВИЗА (СЛОВА) ---
+  if (view === 'word-quiz') {
+    if (showResult) {
+      return (
+        <div className="card quiz-result">
+          <h1>🏁 Результат</h1>
+          <p style={{ fontSize: '1.5rem' }}>{score} / {wordQuestions.length}</p>
+          <button className="primary-btn" onClick={() => setView('login')}>В меню</button>
+        </div>
+      );
+    }
+    const q = wordQuestions[currentQuestionIndex];
+    return (
+      <div className="container quiz-container">
+        <div className="progress-bar-container">
+          <div className="progress-fill" style={{ width: `${((currentQuestionIndex) / wordQuestions.length) * 100}%` }}></div>
+        </div>
+
+        {/* Слово КРУПНО */}
+        <h1 style={{ fontSize: '3rem', margin: '20px 0' }}>{q.word}</h1>
+
+        <div className="options-list">
+          {q.options.map((opt, idx) => {
+            let btnClass = 'option-btn';
+            if (answerState !== 'idle') {
+              if (idx === q.correctIndex) btnClass += ' correct';
+              else if (answerState === 'wrong' && idx === undefined) btnClass += ' wrong';
+            }
+            return (
+              <button key={idx} className={btnClass} onClick={() => handleAnswerClick(idx, 'word')}>
+                {opt}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* ПОЛНЫЙ ПЕРЕВОД (Шторка снизу) */}
+        {answerState !== 'idle' && (
+          <div className={`explanation-box ${answerState}`} style={{ textAlign: 'left' }}>
+            <div style={{ textAlign: 'center', fontSize: '1.5rem', marginBottom: 10 }}>
+              {answerState === 'correct' ? '🎉 Правильно!' : '🤔 Почти...'}
+            </div>
+            <hr style={{ opacity: 0.2 }} />
+            <p style={{ whiteSpace: 'pre-wrap', lineHeight: '1.5' }}>
+              {q.translationFull}
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // --- РЕНДЕР КВИЗА (ГРАММАТИКА) ---
   if (view === 'quiz') {
     if (showResult) {
       return (
         <div className="card quiz-result">
           <h1>🏁 Финиш!</h1>
-          <div style={{ fontSize: '4rem', margin: '20px' }}>
-            {score === 5 ? '🏆' : score >= 3 ? '😎' : '😐'}
-          </div>
-          <p style={{ fontSize: '1.5rem' }}>Результат: <b>{score} / {quizQuestions.length}</b></p>
+          <p style={{ fontSize: '1.5rem' }}>{score} / {quizQuestions.length}</p>
           <button className="primary-btn" onClick={() => setView('topics')}>К темам</button>
         </div>
       );
     }
-
-    const question = quizQuestions[currentQuestionIndex];
+    const q = quizQuestions[currentQuestionIndex];
     return (
       <div className="container quiz-container">
         <div className="progress-bar-container">
           <div className="progress-fill" style={{ width: `${((currentQuestionIndex) / quizQuestions.length) * 100}%` }}></div>
         </div>
-        <p className="step-text">Вопрос {currentQuestionIndex + 1} из {quizQuestions.length}</p>
-        <h3 className="quiz-question">{question.question}</h3>
+        <p className="step-text">Вопрос {currentQuestionIndex + 1} / {quizQuestions.length}</p>
+        <h3 className="quiz-question">{q.question}</h3>
         <div className="options-list">
-          {question.options.map((opt, idx) => {
+          {q.options.map((opt, idx) => {
             let btnClass = 'option-btn';
             if (answerState !== 'idle') {
-              if (idx === question.correctIndex) btnClass += ' correct';
+              if (idx === q.correctIndex) btnClass += ' correct';
               else if (answerState === 'wrong' && idx === undefined) btnClass += ' wrong';
             }
             return (
-              <button
-                key={idx}
-                className={btnClass}
-                onClick={() => handleAnswerClick(idx)}
-                style={answerState !== 'idle' && idx !== question.correctIndex ? { opacity: 0.5 } : {}}
-              >
+              <button key={idx} className={btnClass} onClick={() => handleAnswerClick(idx, 'grammar')}>
                 {opt}
               </button>
             )
@@ -202,9 +296,8 @@ function App() {
         </div>
         {answerState !== 'idle' && (
           <div className={`explanation-box ${answerState}`}>
-            <div style={{ fontSize: '2rem', marginBottom: 10 }}>{answerState === 'correct' ? '🎉' : '❌'}</div>
             <strong>{answerState === 'correct' ? 'Верно!' : 'Ошибка!'}</strong>
-            <p>{question.explanation}</p>
+            <p>{q.explanation}</p>
           </div>
         )}
       </div>
