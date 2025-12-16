@@ -9,24 +9,20 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
-@RequiredArgsConstructor // Автоматически создает конструктор для final полей
+@RequiredArgsConstructor
 @Slf4j
 public class AuthController {
 
     private final AuthService authService;
 
-    // Принимаем объект User, так как фронтенд пока шлет его (а не AuthRequest)
-    // В будущем заменим на AuthRequest для безопасности
     @PostMapping("/login")
     public ResponseEntity<User> login(@RequestBody User userData) {
-        log.info("🔑 Запрос на вход: tgId={}", userData.getTgId());
-
+        // Простейшая авто-регистрация (или вход, если уже есть)
         User user = authService.registerOrLogin(
                 userData.getTgId(),
                 userData.getUsername(),
                 userData.getFirstName()
         );
-
         return ResponseEntity.ok(user);
     }
 }

@@ -58,16 +58,16 @@ public class TelegramBotService extends TelegramLongPollingBot {
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
 
-        // Текст с HTML разметкой
+        // 🔥 ЗАФИКСИРОВАННЫЙ ТЕКСТ (С HTML разметкой)
         String text = String.format(
                 "Поздравляю, <b>%s</b>! 👋\n\n" +
                         "Ты запустил бота <b>Chall_X_Bot</b>.\n\n" +
-                        "Чтобы зарегистрироваться и войти в главный интерфейс приложения, нажми кнопку <b>«📱 Открыть Тренажер»</b> внизу этого сообщения (или кнопку Меню слева от поля ввода). 👇",
+                        "Чтобы зарегистрироваться и войти в главный интерфейс приложения, нажми кнопку <b>«📱 Открыть Chall_X_Bot»</b> внизу этого сообщения (или кнопку Меню слева от поля ввода). 👇",
                 firstName
         );
 
         message.setText(text);
-        message.setParseMode("HTML");
+        message.setParseMode("HTML"); // Важно для работы <b> и \n
 
         // Кнопка
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
@@ -75,7 +75,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
         List<InlineKeyboardButton> row = new ArrayList<>();
 
         InlineKeyboardButton webAppBtn = new InlineKeyboardButton();
-        webAppBtn.setText("📱 Открыть Тренажер");
+        webAppBtn.setText("📱 Открыть Chall_X_Bot"); // Текст на кнопке
 
         // Проверка URL из настроек
         if (webAppUrl != null && !webAppUrl.isEmpty()) {
@@ -104,5 +104,12 @@ public class TelegramBotService extends TelegramLongPollingBot {
     @Override
     public String getBotUsername() {
         return botUsername;
+    }
+
+    @jakarta.annotation.PostConstruct
+    public void init() {
+        log.info("🤖 Бот инициализирован!");
+        log.info("📝 Имя бота: '{}'", getBotUsername());
+        log.info("🔑 Токен (первые 5 символов): '{}...'", getBotToken().substring(0, 5));
     }
 }
