@@ -1,44 +1,32 @@
 package com.challxbot.controller;
 
 import com.challxbot.domain.User;
-import com.challxbot.repository.UserRepository;
+import com.challxbot.service.AuthService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import java.time.LocalDateTime;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(originPatterns = "*", allowCredentials = "true")
+@RequiredArgsConstructor // Автоматически создает конструктор для final полей
+@Slf4j
 public class AuthController {
 
-    private final UserRepository userRepository;
+    private final AuthService authService;
 
-    public AuthController(UserRepository userRepository) {
-        this.userRepository = userRepository;
-    }
-
-
-
+    // Принимаем объект User, так как фронтенд пока шлет его (а не AuthRequest)
+    // В будущем заменим на AuthRequest для безопасности
     @PostMapping("/login")
-    public User loginOrRegister(@RequestBody User userData) {
-        // 1. Ищем пользователя в базе по Telegram ID
-        Optional<User> existingUser = userRepository.findByTgId(userData.getTgId());
+    public ResponseEntity<User> login(@RequestBody User userData) {
+        log.info("🔑 Запрос на вход: tgId={}", userData.getTgId());
 
-        if (existingUser.isPresent()) {
-            // Если нашли — возвращаем его
-            return existingUser.get();
-        } else {
-            // 2. Если не нашли — СОЗДАЕМ нового (Регистрация)
-            User newUser = new User();
-            newUser.setTgId(userData.getTgId());
-            newUser.setUsername(userData.getUsername());
-            newUser.setFirstName(userData.getFirstName());
-            // Если у вас есть поле role, установите дефолтную
-            newUser.setRole("USER");
-            newUser.setCreatedAt(LocalDateTime.now());
+        User user = authService.registerOrLogin(
+                userData.getTgId(),
+                userData.getUsername(),
+                userData.getFirstName()
+        );
 
-            // Сохраняем в базу
-            return userRepository.save(newUser);
-        }
+        return ResponseEntity.ok(user);
     }
 }
