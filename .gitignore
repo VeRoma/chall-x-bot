@@ -9,7 +9,7 @@
 .DS_Store
 *.iml
 
-# --- Logs (Логи ошибок не нужны в репозитории) ---
+# --- Logs (Логи ошибок не нужны в репозитории) вавdfsdfsd
 logs
 *.log
 npm-debug.log*

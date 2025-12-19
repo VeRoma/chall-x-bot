@@ -89,7 +89,7 @@ public class VocabularyService {
         // Логика: На странице слова идут в параграфах <p> после заголовков <h3>.
         // Слова обернуты в <a href="/wiki/word" title="word">word</a>
 
-        // Берем все параграфы
+        // Берем все параграфыЫ
         Elements paragraphs = doc.select(".mw-parser-output > p");
 
         for (Element p : paragraphs) {
@@ -179,7 +179,8 @@ public class VocabularyService {
                         dto.translationFull,
                         correctRank,
                         dto.partOfSpeech,
-                        objectMapper.writeValueAsString(dto.traps)
+                        objectMapper.writeValueAsString(dto.traps),
+                        null
                 );
                 vocabularyRepository.save(vocab);
             }
